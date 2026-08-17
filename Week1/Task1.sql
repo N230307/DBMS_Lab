@@ -161,9 +161,3 @@ VALUES
 TRUNCATE TABLE Tax_Office;
 
 DROP TABLE Tax_Office;
-
-
-
-
-
-
