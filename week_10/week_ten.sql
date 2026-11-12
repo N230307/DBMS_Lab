@@ -1,434 +1,341 @@
 
 SET SERVEROUTPUT ON;
 
--- PART A: TASK 1
+-- PART A: TASK 1 – TAX CALCULATION FUNCTION
+CREATE OR REPLACE FUNCTION calculate_tax(p_income NUMBER)
+RETURN NUMBER
+IS
 BEGIN
-    DBMS_OUTPUT.PUT_LINE('Welcome to TaxationDB');
+    IF p_income <= 500000 THEN
+        RETURN 0;
+    ELSIF p_income <= 1000000 THEN
+        RETURN (p_income - 500000) * 0.10;
+    ELSIF p_income <= 1500000 THEN
+        RETURN ((p_income - 1000000) * 0.20) + 50000;
+    ELSE
+        RETURN ((p_income - 1500000) * 0.30) + 150000;
+    END IF;
 END;
 /
 
--- PART A: TASK 3 & TASK 5
-DECLARE
-    v_name Taxpayer.full_name%TYPE;
-    v_income Taxpayer.annual_income%TYPE;
-BEGIN
-    SELECT full_name, annual_income
-    INTO v_name, v_income
-    FROM Taxpayer
-    WHERE taxpayer_id = 1;
+SELECT calculate_tax(450000) AS tax_low,
+       calculate_tax(800000) AS tax_mid,
+       calculate_tax(1800000) AS tax_high
+FROM dual;
 
-    DBMS_OUTPUT.PUT_LINE('Name: ' || v_name || ', Annual Income: ' || v_income);
-END;
-/
-
--- LEVEL 0: QUESTION 1
-DECLARE
-    v_income Taxpayer.annual_income%TYPE;
-    v_ten_percent NUMBER;
-BEGIN
-    SELECT annual_income
-    INTO v_income
-    FROM Taxpayer
-    WHERE taxpayer_id = 1;
-
-    v_ten_percent := v_income * 0.10;
-    DBMS_OUTPUT.PUT_LINE('10% of Annual Income: ' || v_ten_percent);
-END;
-/
-
--- LEVEL 0: QUESTION 2
-CREATE OR REPLACE PROCEDURE show_taxpayer_info(p_taxpayer_id IN NUMBER)
+-- PART B: TASK 2 – INDIVIDUAL TAX ASSESSMENT
+CREATE OR REPLACE PROCEDURE generate_tax_assessment(p_taxpayer_id IN NUMBER)
 IS
     v_name Taxpayer.full_name%TYPE;
     v_pan Taxpayer.pan_number%TYPE;
-    v_occ Taxpayer.occupation%TYPE;
     v_income Taxpayer.annual_income%TYPE;
+    v_occ Taxpayer.occupation%TYPE;
+    v_tax NUMBER;
+    v_net NUMBER;
 BEGIN
-    SELECT full_name, pan_number, occupation, annual_income
-    INTO v_name, v_pan, v_occ, v_income
+    SELECT full_name, pan_number, annual_income, occupation
+    INTO v_name, v_pan, v_income, v_occ
     FROM Taxpayer
     WHERE taxpayer_id = p_taxpayer_id;
+
+    v_tax := calculate_tax(v_income);
+    v_net := v_income - v_tax;
 
     DBMS_OUTPUT.PUT_LINE('Taxpayer Name: ' || v_name);
     DBMS_OUTPUT.PUT_LINE('PAN Number: ' || v_pan);
     DBMS_OUTPUT.PUT_LINE('Occupation: ' || v_occ);
     DBMS_OUTPUT.PUT_LINE('Annual Income: ' || v_income);
-END;
-/
-
-EXEC show_taxpayer_info(1);
-
--- LEVEL 0: QUESTION 3
-DECLARE
-    v_status Taxpayer.is_active%TYPE;
-BEGIN
-    SELECT is_active
-    INTO v_status
-    FROM Taxpayer
-    WHERE taxpayer_id = 1;
-
-    IF v_status = 1 THEN
-        DBMS_OUTPUT.PUT_LINE('Active');
-    ELSE
-        DBMS_OUTPUT.PUT_LINE('Inactive');
-    END IF;
-END;
-/
-
--- LEVEL 0: QUESTION 4
-CREATE OR REPLACE FUNCTION check_taxable(p_amount NUMBER)
-RETURN VARCHAR2
-IS
-BEGIN
-    IF p_amount > 0 THEN
-        RETURN 'Taxable';
-    ELSE
-        RETURN 'Non-Taxable';
-    END IF;
-END;
-/
-
-SELECT check_taxable(50000) FROM dual;
-
--- LEVEL 0: QUESTION 5
-DECLARE
-    v_num NUMBER := 1;
-BEGIN
-    LOOP
-        DBMS_OUTPUT.PUT_LINE(v_num);
-        v_num := v_num + 1;
-        EXIT WHEN v_num > 10;
-    END LOOP;
-END;
-/
-
--- LEVEL 1: QUESTION 1
-CREATE OR REPLACE PROCEDURE classify_taxpayer_income(p_taxpayer_id IN NUMBER)
-IS
-    v_income Taxpayer.annual_income%TYPE;
-BEGIN
-    SELECT annual_income
-    INTO v_income
-    FROM Taxpayer
-    WHERE taxpayer_id = p_taxpayer_id;
-
-    IF v_income > 1000000 THEN
-        DBMS_OUTPUT.PUT_LINE('High Income');
-    ELSIF v_income >= 500000 THEN
-        DBMS_OUTPUT.PUT_LINE('Medium Income');
-    ELSE
-        DBMS_OUTPUT.PUT_LINE('Low Income');
-    END IF;
-END;
-/
-
-EXEC classify_taxpayer_income(1);
-
--- LEVEL 1: QUESTION 2
-CREATE OR REPLACE FUNCTION get_annual_income(p_taxpayer_id NUMBER)
-RETURN NUMBER
-IS
-    v_income NUMBER;
-BEGIN
-    SELECT annual_income
-    INTO v_income
-    FROM Taxpayer
-    WHERE taxpayer_id = p_taxpayer_id;
-
-    RETURN v_income;
-END;
-/
-
-SELECT full_name, get_annual_income(taxpayer_id) AS annual_income
-FROM Taxpayer;
-
--- LEVEL 2: QUESTION 1
-DECLARE
-    CURSOR active_tp_cursor IS
-        SELECT full_name, annual_income, occupation
-        FROM Taxpayer
-        WHERE is_active = 1;
-BEGIN
-    FOR tp_rec IN active_tp_cursor LOOP
-        DBMS_OUTPUT.PUT_LINE(
-            tp_rec.full_name || ' - ' ||
-            tp_rec.annual_income || ' - ' ||
-            tp_rec.occupation
-        );
-    END LOOP;
-END;
-/
-
--- LEVEL 2: QUESTION 2
-CREATE OR REPLACE PROCEDURE fetch_taxpayer(p_taxpayer_id IN NUMBER)
-IS
-    v_name Taxpayer.full_name%TYPE;
-    v_income Taxpayer.annual_income%TYPE;
-BEGIN
-    SELECT full_name, annual_income
-    INTO v_name, v_income
-    FROM Taxpayer
-    WHERE taxpayer_id = p_taxpayer_id;
-
-    DBMS_OUTPUT.PUT_LINE('Taxpayer Name: ' || v_name);
-    DBMS_OUTPUT.PUT_LINE('Annual Income: ' || v_income);
+    DBMS_OUTPUT.PUT_LINE('Tax Amount: ' || v_tax);
+    DBMS_OUTPUT.PUT_LINE('Net Income after Tax: ' || v_net);
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
         DBMS_OUTPUT.PUT_LINE('Taxpayer not found');
 END;
 /
 
-EXEC fetch_taxpayer(9999);
+EXEC generate_tax_assessment(1);
 
--- OPTIONAL 1: PROCEDURE WITH UPDATE
-CREATE OR REPLACE PROCEDURE update_taxpayer_income(
-    p_taxpayer_id IN NUMBER,
-    p_new_income IN NUMBER
-)
-IS
-    v_count NUMBER;
-BEGIN
-    SELECT COUNT(*)
-    INTO v_count
-    FROM Taxpayer
-    WHERE taxpayer_id = p_taxpayer_id;
-
-    IF v_count > 0 THEN
-        UPDATE Taxpayer
-        SET annual_income = p_new_income
-        WHERE taxpayer_id = p_taxpayer_id;
-        DBMS_OUTPUT.PUT_LINE('Annual income updated successfully');
-    ELSE
-        DBMS_OUTPUT.PUT_LINE('Taxpayer not found');
-    END IF;
-END;
-/
-
-EXEC update_taxpayer_income(1, 900000);
-
--- OPTIONAL 2: CASE CLASSIFICATION
-CREATE OR REPLACE PROCEDURE classify_income_case(p_income IN NUMBER)
-IS
-BEGIN
-    CASE
-        WHEN p_income > 1000000 THEN
-            DBMS_OUTPUT.PUT_LINE('High');
-        WHEN p_income >= 500000 THEN
-            DBMS_OUTPUT.PUT_LINE('Medium');
-        ELSE
-            DBMS_OUTPUT.PUT_LINE('Low');
-    END CASE;
-END;
-/
-
-EXEC classify_income_case(750000);
-
--- OPTIONAL 3: INCOME RECORDS BY TAXPAYER
-CREATE OR REPLACE PROCEDURE show_income_records(p_taxpayer_id IN NUMBER)
-IS
-    CURSOR rec_cursor IS
-        SELECT ir.income_source, ic.category_name, ir.amount, ir.received_date, fy.financial_year
-        FROM Income_Record ir
-        JOIN Income_Category ic ON ir.category_id = ic.category_id
-        JOIN Financial_Year fy ON ir.fy_id = fy.fy_id
-        WHERE ir.taxpayer_id = p_taxpayer_id;
-BEGIN
-    FOR r IN rec_cursor LOOP
-        DBMS_OUTPUT.PUT_LINE(
-            r.income_source || ' | ' ||
-            r.category_name || ' | ' ||
-            r.amount || ' | ' ||
-            r.received_date || ' | ' ||
-            r.financial_year
-        );
-    END LOOP;
-END;
-/
-
-EXEC show_income_records(1);
-
--- OPTIONAL 4: CURSOR PROCESSING ALL INCOME RECORDS
-DECLARE
-    CURSOR all_income_cursor IS
-        SELECT ir.income_id, ir.income_source, ir.amount, fy.financial_year
-        FROM Income_Record ir
-        JOIN Financial_Year fy ON ir.fy_id = fy.fy_id;
-BEGIN
-    FOR r IN all_income_cursor LOOP
-        DBMS_OUTPUT.PUT_LINE(
-            r.income_id || ' | ' ||
-            r.income_source || ' | ' ||
-            r.amount || ' | ' ||
-            r.financial_year
-        );
-    END LOOP;
-END;
-/
-
--- OPTIONAL 5: FUNCTION WITH TAXATION LOGIC
-CREATE OR REPLACE FUNCTION get_tax_category(p_income NUMBER)
+-- PART C: TASK 3 – CLASSIFICATION FUNCTION
+CREATE OR REPLACE FUNCTION income_category(p_income NUMBER)
 RETURN VARCHAR2
 IS
 BEGIN
     IF p_income <= 500000 THEN
-        RETURN 'No Tax Category';
+        RETURN 'Low Income';
     ELSIF p_income <= 1000000 THEN
-        RETURN 'Moderate Income';
-    ELSE
+        RETURN 'Medium Income';
+    ELSIF p_income <= 1500000 THEN
         RETURN 'High Income';
+    ELSE
+        RETURN 'Very High Income';
     END IF;
 END;
 /
 
-SELECT full_name, annual_income, get_tax_category(annual_income) AS tax_category
+SELECT full_name AS Taxpayer_Name,
+       annual_income AS Annual_Income,
+       income_category(annual_income) AS Income_Category
 FROM Taxpayer;
 
-
-================================================================================
-PART 2: MYSQL STORED PROGRAMS (week9_stored_programs_mysql.sql)
-================================================================================
-
-USE taxation_db;
-
--- PART A: TASK 2
-DELIMITER //
-CREATE PROCEDURE welcome_taxation()
+-- LEVEL 1: QUESTION 1 – TAXPAYER SUMMARY PROCEDURE
+CREATE OR REPLACE PROCEDURE taxpayer_summary(p_taxpayer_id IN NUMBER)
+IS
+    v_name Taxpayer.full_name%TYPE;
+    v_income Taxpayer.annual_income%TYPE;
+    v_cat VARCHAR2(30);
+    v_tax NUMBER;
+    v_net NUMBER;
 BEGIN
-    SELECT 'Welcome to TaxationDB' AS message;
-END //
-DELIMITER ;
-
-CALL welcome_taxation();
-
--- PART A: TASK 4 & TASK 5
-DELIMITER //
-CREATE PROCEDURE get_taxpayer_details(IN p_taxpayer_id INT)
-BEGIN
-    DECLARE v_name VARCHAR(100);
-    DECLARE v_income DECIMAL(12,2);
-
     SELECT full_name, annual_income
     INTO v_name, v_income
     FROM Taxpayer
     WHERE taxpayer_id = p_taxpayer_id;
 
-    SELECT v_name AS taxpayer_name, v_income AS annual_income;
-END //
-DELIMITER ;
+    v_cat := income_category(v_income);
+    v_tax := calculate_tax(v_income);
+    v_net := v_income - v_tax;
 
-CALL get_taxpayer_details(1);
+    DBMS_OUTPUT.PUT_LINE('Taxpayer Name: ' || v_name);
+    DBMS_OUTPUT.PUT_LINE('Annual Income: ' || v_income);
+    DBMS_OUTPUT.PUT_LINE('Income Category: ' || v_cat);
+    DBMS_OUTPUT.PUT_LINE('Calculated Tax: ' || v_tax);
+    DBMS_OUTPUT.PUT_LINE('Net Income: ' || v_net);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Taxpayer not found');
+END;
+/
 
--- LEVEL 0: QUESTION 1
-DELIMITER //
-CREATE PROCEDURE calc_ten_percent(IN p_taxpayer_id INT)
+EXEC taxpayer_summary(1);
+
+-- LEVEL 1: QUESTION 2 – INCOME RECORD PROCESSING
+CREATE OR REPLACE PROCEDURE check_recorded_income(p_taxpayer_id IN NUMBER)
+IS
+    v_name Taxpayer.full_name%TYPE;
+    v_annual Taxpayer.annual_income%TYPE;
+    v_recorded NUMBER;
+    v_rec_count NUMBER;
+    v_diff NUMBER;
 BEGIN
-    DECLARE v_income DECIMAL(12,2);
-    DECLARE v_ten_percent DECIMAL(12,2);
-
-    SELECT annual_income
-    INTO v_income
+    SELECT full_name, annual_income
+    INTO v_name, v_annual
     FROM Taxpayer
     WHERE taxpayer_id = p_taxpayer_id;
 
-    SET v_ten_percent = v_income * 0.10;
-    SELECT v_ten_percent AS ten_percent_income;
-END //
-DELIMITER ;
-
-CALL calc_ten_percent(1);
-
--- LEVEL 0: QUESTION 2
-DELIMITER //
-CREATE PROCEDURE show_taxpayer_info(IN p_taxpayer_id INT)
-BEGIN
-    SELECT full_name AS Taxpayer_Name,
-           pan_number AS PAN_Number,
-           occupation AS Occupation,
-           annual_income AS Annual_Income
-    FROM Taxpayer
-    WHERE taxpayer_id = p_taxpayer_id;
-END //
-DELIMITER ;
-
-CALL show_taxpayer_info(1);
-
--- LEVEL 0: QUESTION 3
-DELIMITER //
-CREATE PROCEDURE check_taxpayer_status(IN p_taxpayer_id INT)
-BEGIN
-    DECLARE v_status TINYINT;
-
-    SELECT is_active
-    INTO v_status
-    FROM Taxpayer
+    SELECT COUNT(*), NVL(SUM(amount), 0)
+    INTO v_rec_count, v_recorded
+    FROM Income_Record
     WHERE taxpayer_id = p_taxpayer_id;
 
-    IF v_status = 1 THEN
-        SELECT 'Active' AS status;
+    IF v_rec_count = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('No income records exist for ' || v_name);
     ELSE
-        SELECT 'Inactive' AS status;
+        v_diff := v_annual - v_recorded;
+        DBMS_OUTPUT.PUT_LINE('Taxpayer Name: ' || v_name);
+        DBMS_OUTPUT.PUT_LINE('Total Recorded Income: ' || v_recorded);
+        DBMS_OUTPUT.PUT_LINE('Annual Income: ' || v_annual);
+        DBMS_OUTPUT.PUT_LINE('Difference: ' || v_diff);
     END IF;
-END //
-DELIMITER ;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Taxpayer not found');
+END;
+/
 
-CALL check_taxpayer_status(1);
+EXEC check_recorded_income(1);
 
--- LEVEL 0: QUESTION 4
-DELIMITER //
-CREATE FUNCTION check_taxable(p_amount DECIMAL(12,2))
-RETURNS VARCHAR(20)
-DETERMINISTIC
+-- LEVEL 1: QUESTION 3 – CONDITIONAL ASSESSMENT
+CREATE OR REPLACE PROCEDURE conditional_assessment(p_taxpayer_id IN NUMBER)
+IS
+    v_name Taxpayer.full_name%TYPE;
+    v_income Taxpayer.annual_income%TYPE;
+    v_status VARCHAR2(30);
 BEGIN
-    IF p_amount > 0 THEN
-        RETURN 'Taxable';
+    SELECT full_name, annual_income
+    INTO v_name, v_income
+    FROM Taxpayer
+    WHERE taxpayer_id = p_taxpayer_id;
+
+    IF v_income <= 500000 THEN
+        v_status := 'No Tax Assessment';
+    ELSIF v_income <= 1000000 THEN
+        v_status := 'Standard Assessment';
     ELSE
-        RETURN 'Non-Taxable';
+        v_status := 'High Income Assessment';
     END IF;
-END //
-DELIMITER ;
 
-SELECT check_taxable(50000);
+    DBMS_OUTPUT.PUT_LINE('Taxpayer Name: ' || v_name);
+    DBMS_OUTPUT.PUT_LINE('Annual Income: ' || v_income);
+    DBMS_OUTPUT.PUT_LINE('Assessment Status: ' || v_status);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Taxpayer not found');
+END;
+/
 
--- LEVEL 0: QUESTION 5
-DELIMITER //
-CREATE PROCEDURE print_one_to_ten()
+EXEC conditional_assessment(1);
+
+-- LEVEL 2: QUESTION 1 – CURSOR-BASED TAX ASSESSMENT
+DECLARE
+    CURSOR active_tp_cur IS
+        SELECT full_name, annual_income
+        FROM Taxpayer
+        WHERE is_active = 1;
+    v_cat VARCHAR2(30);
+    v_tax NUMBER;
+    v_net NUMBER;
 BEGIN
-    DECLARE v_num INT DEFAULT 1;
+    FOR rec IN active_tp_cur LOOP
+        v_cat := income_category(rec.annual_income);
+        v_tax := calculate_tax(rec.annual_income);
+        v_net := rec.annual_income - v_tax;
 
-    num_loop: LOOP
-        SELECT v_num;
-        SET v_num = v_num + 1;
-        IF v_num > 10 THEN
-            LEAVE num_loop;
-        END IF;
+        DBMS_OUTPUT.PUT_LINE(
+            rec.full_name || ' | ' ||
+            rec.annual_income || ' | ' ||
+            v_cat || ' | ' ||
+            v_tax || ' | ' ||
+            v_net
+        );
     END LOOP;
-END //
-DELIMITER ;
+END;
+/
 
-CALL print_one_to_ten();
-
--- LEVEL 1: QUESTION 1
-DELIMITER //
-CREATE PROCEDURE classify_taxpayer_income(IN p_taxpayer_id INT)
+-- LEVEL 2: QUESTION 2 – CURSOR WITH CONDITIONAL PROCESSING
+DECLARE
+    CURSOR active_tp_cur IS
+        SELECT full_name, annual_income
+        FROM Taxpayer
+        WHERE is_active = 1;
+    v_tax NUMBER;
+    v_cat VARCHAR2(30);
 BEGIN
-    DECLARE v_income DECIMAL(12,2);
+    FOR rec IN active_tp_cur LOOP
+        IF rec.annual_income <= 500000 THEN
+            v_tax := 0;
+            v_cat := 'NO TAX';
+        ELSIF rec.annual_income <= 1000000 THEN
+            v_tax := (rec.annual_income - 500000) * 0.10;
+            v_cat := '10% Slab';
+        ELSE
+            v_tax := calculate_tax(rec.annual_income);
+            v_cat := 'High Slab';
+        END IF;
+
+        DBMS_OUTPUT.PUT_LINE(
+            rec.full_name || ' | ' ||
+            rec.annual_income || ' | ' ||
+            v_tax || ' | ' ||
+            v_cat
+        );
+    END LOOP;
+END;
+/
+
+-- LEVEL 2: QUESTION 3 – PROCEDURE WITH UPDATE
+CREATE OR REPLACE PROCEDURE update_taxpayer_income(
+    p_taxpayer_id IN NUMBER,
+    p_new_income IN NUMBER
+)
+IS
+    v_name Taxpayer.full_name%TYPE;
+    v_income Taxpayer.annual_income%TYPE;
+BEGIN
+    IF p_new_income < 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Invalid income: Income must be greater than or equal to zero');
+        RETURN;
+    END IF;
+
+    SELECT full_name
+    INTO v_name
+    FROM Taxpayer
+    WHERE taxpayer_id = p_taxpayer_id;
+
+    UPDATE Taxpayer
+    SET annual_income = p_new_income
+    WHERE taxpayer_id = p_taxpayer_id;
 
     SELECT annual_income
     INTO v_income
     FROM Taxpayer
     WHERE taxpayer_id = p_taxpayer_id;
 
-    IF v_income > 1000000 THEN
-        SELECT 'High Income' AS classification;
-    ELSEIF v_income >= 500000 THEN
-        SELECT 'Medium Income' AS classification;
-    ELSE
-        SELECT 'Low Income' AS classification;
-    END IF;
-END //
-DELIMITER ;
+    DBMS_OUTPUT.PUT_LINE('Updated Taxpayer: ' || v_name || ', New Annual Income: ' || v_income);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Taxpayer does not exist');
+END;
+/
 
-CALL classify_taxpayer_income(1);
+EXEC update_taxpayer_income(1, 950000);
 
--- LEVEL 1: QUESTION 2
-DELIMITER //
+-- LEVEL 2: QUESTION 4 – EXCEPTION HANDLING
+CREATE OR REPLACE PROCEDURE safe_tax_calc(p_taxpayer_id IN NUMBER)
+IS
+    v_income Taxpayer.annual_income%TYPE;
+    v_tax NUMBER;
+BEGIN
+    SELECT annual_income
+    INTO v_income
+    FROM Taxpayer
+    WHERE taxpayer_id = p_taxpayer_id;
+
+    v_tax := calculate_tax(v_income);
+    DBMS_OUTPUT.PUT_LINE('Calculated Tax: ' || v_tax);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Taxpayer ID ' || p_taxpayer_id || ' was not found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error occurred: ' || SQLERRM);
+END;
+/
+
+EXEC safe_tax_calc(9999);
+
+-- LEVEL 3: QUESTION 1 – COMPLETE TAX ASSESSMENT SYSTEM
+CREATE OR REPLACE PROCEDURE complete_tax_assessment(p_taxpayer_id IN NUMBER)
+IS
+    v_name Taxpayer.full_name%TYPE;
+    v_pan Taxpayer.pan_number%TYPE;
+    v_occ Taxpayer.occupation%TYPE;
+    v_income Taxpayer.annual_income%TYPE;
+    v_cat VARCHAR2(30);
+    v_tax NUMBER;
+    v_net NUMBER;
+BEGIN
+    SELECT full_name, pan_number, occupation, annual_income
+    INTO v_name, v_pan, v_occ, v_income
+    FROM Taxpayer
+    WHERE taxpayer_id = p_taxpayer_id;
+
+    v_cat := income_category(v_income);
+    v_tax := calculate_tax(v_income);
+    v_net := v_income - v_tax;
+
+    DBMS_OUTPUT.PUT_LINE('--------------------------------');
+    DBMS_OUTPUT.PUT_LINE('TAX ASSESSMENT REPORT');
+    DBMS_OUTPUT.PUT_LINE('--------------------------------');
+    DBMS_OUTPUT.PUT_LINE('Taxpayer Name  : ' || v_name);
+    DBMS_OUTPUT.PUT_LINE('PAN Number     : ' || v_pan);
+    DBMS_OUTPUT.PUT_LINE('Occupation     : ' || v_occ);
+    DBMS_OUTPUT.PUT_LINE('Annual Income  : ' || v_income);
+    DBMS_OUTPUT.PUT_LINE('Income Category: ' || v_cat);
+    DBMS_OUTPUT.PUT_LINE('Tax Amount     : ' || v_tax);
+    DBMS_OUTPUT.PUT_LINE('Net Income     : ' || v_net);
+    DBMS_OUTPUT.PUT_LINE('--------------------------------');
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Taxpayer not found');
+END;
+/
+
+EXEC complete_tax_assessment(1);
+
+-- LEVEL 3: QUESTION 2 – INCOME RECORD CURSOR PROCESSING
+DECLARE
+    CURSOR rec_cur IS
+        SELECT ir.income_id, ir.taxpayer_id, ir.income_source, ic.category_name,
+               ir.amount, ir.received_date, fy.financial_year
+        FROM Income_Record ir
+        JOIN Income_Category ic ON ir.category_id = ic.category_id
+        JOIN Financial_Year fy ON ir.fy_id = fy.fy_id;
